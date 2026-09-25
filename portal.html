@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client Portal | Reg Assistance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --navy: #0B1F3A; --navy-mid: #122947; --navy-light: #1a3a5c;
+    --gold: #C8972A; --gold-light: #E8B84B; --gold-pale: #F5E6C3;
+    --cream: #FAF7F2; --white: #FFFFFF;
+    --text-dark: #0B1F3A; --text-mid: #3D5A7A; --text-muted: #7A96B0;
+    --shadow: 0 20px 60px rgba(11,31,58,0.15);
+    --ok: #2e7d4f; --warn: #C8972A; --pending: #7A96B0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text-dark);
+    min-height: 100vh; padding-top: 72px;
+  }
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    background: rgba(11,31,58,0.97); backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(200,151,42,0.25);
+    padding: 0 5%; display: flex; align-items: center; justify-content: space-between;
+    height: 72px;
+  }
+  .nav-logo {
+    font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700;
+    color: var(--white); text-decoration: none; display: flex; align-items: center; gap: 10px;
+  }
+  .nav-logo span { color: var(--gold); }
+  .logo-badge {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; color: var(--navy); letter-spacing: 0.05em;
+  }
+  .nav-right { display: flex; align-items: center; gap: 20px; }
+  .nav-right a, .nav-right button {
+    color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.88rem; font-weight: 500;
+    background: none; border: none; cursor: pointer; font-family: inherit;
+  }
+  .nav-right a:hover, .nav-right button:hover { color: var(--gold-light); }
+  #userChip { color: var(--gold-light); font-weight: 600; font-size: 0.85rem; display: none; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 48px 5% 100px; }
+  .hidden { display: none !important; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 24px; border-radius: 8px; font-weight: 700; font-size: 0.92rem;
+    border: none; cursor: pointer; font-family: inherit; width: 100%;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--gold), var(--gold-light)); color: var(--navy); }
+  .btn-outline { background: none; border: 1.5px solid rgba(11,31,58,0.2); color: var(--text-dark); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* Auth card */
+  .auth-shell { display: flex; justify-content: center; padding-top: 24px; }
+  .auth-card {
+    background: var(--white); border-radius: 18px; box-shadow: var(--shadow);
+    max-width: 420px; width: 100%; padding: 40px 36px;
+  }
+  .auth-tabs { display: flex; gap: 8px; margin-bottom: 28px; background: var(--cream); border-radius: 10px; padding: 4px; }
+  .auth-tab {
+    flex: 1; text-align: center; padding: 10px; border-radius: 8px; font-weight: 600;
+    font-size: 0.86rem; cursor: pointer; color: var(--text-mid);
+  }
+  .auth-tab.active { background: var(--navy); color: var(--white); }
+  .auth-card h2 { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 8px; }
+  .auth-card .sub { font-size: 0.85rem; color: var(--text-mid); margin-bottom: 24px; line-height: 1.5; }
+  input, select, textarea {
+    width: 100%; padding: 13px 16px; margin-bottom: 14px;
+    border: 1.5px solid rgba(11,31,58,0.15); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--text-dark);
+    background: var(--white);
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+  label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-mid); margin-bottom: 6px; }
+  .field-msg { font-size: 0.8rem; margin: -6px 0 14px; display: none; }
+  .field-msg.error { color: #c0392b; }
+  .field-msg.ok { color: var(--ok); }
+
+  /* Dashboard */
+  .dash-head { margin-bottom: 36px; }
+  .dash-head h1 { font-family: 'Playfair Display', serif; font-size: 1.9rem; margin-bottom: 6px; }
+  .dash-head p { color: var(--text-mid); font-size: 0.95rem; }
+  .panel {
+    background: var(--white); border-radius: 16px; padding: 32px;
+    box-shadow: 0 8px 30px rgba(11,31,58,0.06); margin-bottom: 32px;
+    border: 1px solid rgba(11,31,58,0.06);
+  }
+  .panel h3 { font-family: 'Playfair Display', serif; font-size: 1.25rem; margin-bottom: 6px; }
+  .panel .panel-sub { font-size: 0.85rem; color: var(--text-mid); margin-bottom: 22px; }
+  .cipc-toggle { display: flex; gap: 12px; margin-bottom: 6px; }
+  .cipc-toggle label {
+    flex: 1; border: 1.5px solid rgba(11,31,58,0.15); border-radius: 8px;
+    padding: 12px; text-align: center; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+    color: var(--text-mid); margin: 0;
+  }
+  .cipc-toggle input { display: none; }
+  .cipc-toggle input:checked + span { color: var(--navy); }
+  .cipc-toggle label:has(input:checked) { border-color: var(--gold); background: var(--gold-pale); color: var(--navy); }
+  .file-drop {
+    border: 1.5px dashed rgba(11,31,58,0.2); border-radius: 8px; padding: 20px;
+    text-align: center; font-size: 0.82rem; color: var(--text-mid); margin-bottom: 14px; cursor: pointer;
+  }
+
+  /* Request cards */
+  .req-card {
+    border: 1px solid rgba(11,31,58,0.08); border-radius: 12px; padding: 22px;
+    margin-bottom: 16px;
+  }
+  .req-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .req-top h4 { font-size: 1.02rem; color: var(--text-dark); }
+  .req-date { font-size: 0.78rem; color: var(--text-muted); }
+  .stepper { display: flex; align-items: center; }
+  .step { flex: 1; text-align: center; position: relative; }
+  .step .dot {
+    width: 22px; height: 22px; border-radius: 50%; background: #E4E9EF; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 6px;
+    font-size: 0.7rem; font-weight: 700; position: relative; z-index: 2;
+  }
+  .step .line {
+    position: absolute; top: 11px; left: -50%; width: 100%; height: 2px; background: #E4E9EF; z-index: 1;
+  }
+  .step:first-child .line { display: none; }
+  .step span.label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; }
+  .step.done .dot { background: var(--ok); color: var(--white); }
+  .step.done .line { background: var(--ok); }
+  .step.active .dot { background: var(--gold); color: var(--navy); }
+  .step.active span.label { color: var(--text-dark); }
+  .req-notice { font-size: 0.8rem; color: var(--text-mid); background: var(--cream); padding: 10px 14px; border-radius: 8px; margin-top: 16px; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-mid); font-size: 0.9rem; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 2000; background: rgba(11,31,58,0.75);
+    backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--white); border-radius: 18px; max-width: 460px; width: 100%; padding: 36px 32px; box-shadow: var(--shadow); }
+  .modal-box h3 { font-family: 'Playfair Display', serif; font-size: 1.3rem; margin-bottom: 12px; }
+  .modal-box .lock-row { display: flex; gap: 12px; align-items: flex-start; background: var(--cream); padding: 14px 16px; border-radius: 10px; margin-bottom: 20px; }
+  .modal-box .lock-row span.ic { font-size: 1.3rem; }
+  .modal-box .lock-row p { font-size: 0.83rem; color: var(--text-mid); line-height: 1.55; margin: 0; }
+  .modal-box .btn-row { display: flex; gap: 10px; margin-top: 8px; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 32px 6% 80px; }
+    .auth-card { padding: 32px 24px; }
+    .cipc-toggle { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <div class="logo-badge">RA</div>
+    Reg <span>Assistance</span>
+  </a>
+  <div class="nav-right">
+    <span id="userChip"></span>
+    <a href="index.html">← Back to Site</a>
+    <button id="signOutBtn" class="hidden" onclick="handleSignOut()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ============ AUTH VIEW ============ -->
+  <div id="authView" class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tabSignin" onclick="switchTab('signin')">Sign In</div>
+        <div class="auth-tab" id="tabSignup" onclick="switchTab('signup')">Create Account</div>
+      </div>
+
+      <!-- Sign in -->
+      <div id="signinForm">
+        <h2>Welcome Back</h2>
+        <p class="sub">Sign in to track your requests and submit new ones.</p>
+        <label>Email</label>
+        <input type="email" id="si-email" placeholder="you@example.com">
+        <label>Password</label>
+        <input type="password" id="si-password" placeholder="••••••••">
+        <p class="field-msg error" id="si-msg"></p>
+        <button class="btn btn-primary" onclick="handleSignIn()" id="si-btn">Sign In</button>
+      </div>
+
+      <!-- Sign up -->
+      <div id="signupForm" class="hidden">
+        <h2>Create Your Account</h2>
+        <p class="sub">Set up a free account to submit requests and track progress.</p>
+        <label>Full Name</label>
+        <input type="text" id="su-name" placeholder="Your full name">
+        <label>Email</label>
+        <input type="email" id="su-email" placeholder="you@example.com">
+        <label>Password</label>
+        <input type="password" id="su-password" placeholder="At least 6 characters">
+        <p class="field-msg error" id="su-msg"></p>
+        <button class="btn btn-primary" onclick="handleSignUp()" id="su-btn">Create Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DASHBOARD VIEW ============ -->
+  <div id="dashView" class="hidden">
+    <div class="dash-head">
+      <h1>Your Dashboard</h1>
+      <p>Submit a new request or check the status of an existing one.</p>
+    </div>
+
+    <!-- New request panel -->
+    <div class="panel">
+      <h3>Submit a New Request</h3>
+      <p class="panel-sub">Choose a service below. We'll tell you exactly what we need from you on the next step.</p>
+
+      <label>Service</label>
+      <select id="req-service">
+        <optgroup label="Company Registration">
+          <option>Private Company Registration (Pty Ltd)</option>
+          <option>Non-Profit Company (NPC) Registration</option>
+          <option>Company Name Reservation</option>
+          <option>External Company Registration</option>
+          <option>CC to Company Conversion</option>
+          <option>Co-operative Registration</option>
+        </optgroup>
+        <optgroup label="Compliance & Maintenance">
+          <option>Director Changes</option>
+          <option>Annual Returns Filing</option>
+          <option>Company Name Change</option>
+          <option>Registered Address Change</option>
+          <option>Financial Year-End Change</option>
+          <option>Company Re-instatement</option>
+        </optgroup>
+        <optgroup label="Certificates & Filings">
+          <option>MOI Amendment</option>
+          <option>B-BBEE Certificate (CIPC)</option>
+          <option>Disclosure Certificate</option>
+          <option>Company Deregistration</option>
+        </optgroup>
+        <optgroup label="Trade Marks, Designs & Copyright">
+          <option>Trade Mark Registration</option>
+          <option>Trade Mark Renewal</option>
+          <option>Design Registration</option>
+          <option>Copyright in Film Registration</option>
+        </optgroup>
+      </select>
+
+      <label>Do you already have a CIPC account for this company?</label>
+      <div class="cipc-toggle">
+        <label><input type="radio" name="cipc" value="yes"><span>Yes, I have one</span></label>
+        <label><input type="radio" name="cipc" value="no" checked><span>No / Not sure</span></label>
+      </div>
+
+      <label style="margin-top:10px">Anything else we should know? (optional)</label>
+      <textarea id="req-notes" rows="3" placeholder="e.g. preferred company name, urgency, etc."></textarea>
+
+      <label>Proof of Payment (optional — only if you've already paid)</label>
+      <input type="file" id="req-file" accept="image/*,.pdf">
+
+      <p class="field-msg error" id="req-msg"></p>
+      <button class="btn btn-primary" onclick="openConfidentialityModal()" id="req-btn">Continue →</button>
+    </div>
+
+    <!-- Existing requests -->
+    <div class="panel">
+      <h3>My Requests</h3>
+      <p class="panel-sub">Live status, updated by our team as your request moves along.</p>
+      <div id="requestsList"><div class="empty-state">Loading your requests…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Confidentiality modal (shown before final submit) -->
+<div class="modal-overlay" id="confModal">
+  <div class="modal-box">
+    <h3>🔒 We Don't Store Confidential Information</h3>
+    <div class="lock-row">
+      <span class="ic">📧</span>
+      <p id="confText">
+        For anything sensitive — like an existing CIPC account login — we never ask for it here or store it
+        in your portal account. Once you submit, we'll email a secure, fillable form to your account email
+        for you to complete and return. WhatsApp is available as a backup if email doesn't work for you.
+      </p>
+    </div>
+    <p class="field-msg error" id="conf-msg"></p>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeConfidentialityModal()">Back</button>
+      <button class="btn btn-primary" onclick="submitRequest()" id="conf-submit-btn">Confirm &amp; Submit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── SUPABASE INIT ──
+  const SUPABASE_URL = 'https://sgkjygukpuklkpqnvbid.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNna2p5Z3VrcHVrbGtwcW52YmlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNDczNzQsImV4cCI6MjEwNTgyMzM3NH0.75fwdmPzh4DHYxQWa61m1T4pTzppZRZ3TOk-nlK-tk8';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const STATUS_STEPS = [
+    { key: 'submitted',   label: 'Submitted' },
+    { key: 'in_progress', label: 'In Progress' },
+    { key: 'with_cipc',   label: 'With CIPC' },
+    { key: 'done',        label: 'Done' }
+  ];
+
+  let currentUser = null;
+
+  // ── AUTH TABS ──
+  function switchTab(tab) {
+    document.getElementById('tabSignin').classList.toggle('active', tab === 'signin');
+    document.getElementById('tabSignup').classList.toggle('active', tab === 'signup');
+    document.getElementById('signinForm').classList.toggle('hidden', tab !== 'signin');
+    document.getElementById('signupForm').classList.toggle('hidden', tab !== 'signup');
+  }
+
+  function showMsg(id, text) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.style.display = text ? 'block' : 'none';
+  }
+
+  // ── SIGN UP / SIGN IN / SIGN OUT ──
+  async function handleSignUp() {
+    const full_name = document.getElementById('su-name').value.trim();
+    const email = document.getElementById('su-email').value.trim();
+    const password = document.getElementById('su-password').value;
+    showMsg('su-msg', '');
+
+    if (!full_name || !email || !password) { showMsg('su-msg', 'Please fill in every field.'); return; }
+    if (password.length < 6) { showMsg('su-msg', 'Password must be at least 6 characters.'); return; }
+
+    document.getElementById('su-btn').disabled = true;
+    const { data, error } = await sb.auth.signUp({
+      email, password,
+      options: { data: { full_name } }
+    });
+    document.getElementById('su-btn').disabled = false;
+
+    if (error) { showMsg('su-msg', error.message); return; }
+    if (data.session) {
+      onLoggedIn(data.session.user);
+    } else {
+      showMsg('su-msg', 'Account created! Check your email to confirm, then sign in.');
+      switchTab('signin');
+    }
+  }
+
+  async function handleSignIn() {
+    const email = document.getElementById('si-email').value.trim();
+    const password = document.getElementById('si-password').value;
+    showMsg('si-msg', '');
+    if (!email || !password) { showMsg('si-msg', 'Please enter your email and password.'); return; }
+
+    document.getElementById('si-btn').disabled = true;
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    document.getElementById('si-btn').disabled = false;
+
+    if (error) { showMsg('si-msg', error.message); return; }
+    onLoggedIn(data.user);
+  }
+
+  async function handleSignOut() {
+    await sb.auth.signOut();
+    currentUser = null;
+    document.getElementById('authView').classList.remove('hidden');
+    document.getElementById('dashView').classList.add('hidden');
+    document.getElementById('signOutBtn').classList.add('hidden');
+    document.getElementById('userChip').style.display = 'none';
+  }
+
+  function onLoggedIn(user) {
+    currentUser = user;
+    document.getElementById('authView').classList.add('hidden');
+    document.getElementById('dashView').classList.remove('hidden');
+    document.getElementById('signOutBtn').classList.remove('hidden');
+    const chip = document.getElementById('userChip');
+    chip.textContent = user.user_metadata?.full_name || user.email;
+    chip.style.display = 'inline';
+    loadRequests();
+  }
+
+  // Restore session on page load
+  (async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { onLoggedIn(session.user); return; }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'signup') switchTab('signup');
+  })();
+
+  // ── CONFIDENTIALITY MODAL ──
+  function openConfidentialityModal() {
+    const service = document.getElementById('req-service').value;
+    showMsg('req-msg', '');
+    const confText = document.getElementById('confText');
+    if (service === 'Annual Returns Filing') {
+      confText.textContent = "For your annual return we'll need financial info (and an existing CIPC login, if you have one) — but we never collect that here. Once you submit, we'll email a secure, fillable form to your account email to complete and return with any documents attached. WhatsApp is available as a backup if email doesn't work for you.";
+    } else {
+      confText.textContent = "For anything sensitive — like an existing CIPC account login — we never ask for it here or store it in your portal account. Once you submit, we'll email a secure, fillable form to your account email for you to complete and return. WhatsApp is available as a backup if email doesn't work for you.";
+    }
+    document.getElementById('confModal').classList.add('open');
+  }
+  function closeConfidentialityModal() {
+    document.getElementById('confModal').classList.remove('open');
+  }
+
+  // ── SUBMIT REQUEST ──
+  async function submitRequest() {
+    const service_name = document.getElementById('req-service').value;
+    const has_cipc_account = document.querySelector('input[name="cipc"]:checked').value === 'yes';
+    const notes = document.getElementById('req-notes').value.trim();
+    const fileInput = document.getElementById('req-file');
+    const btn = document.getElementById('conf-submit-btn');
+
+    btn.disabled = true;
+    showMsg('conf-msg', '');
+
+    let payment_proof_path = null;
+    try {
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const path = `${currentUser.id}/${Date.now()}_${file.name}`;
+        const { error: uploadErr } = await sb.storage.from('proof-of-payments').upload(path, file);
+        if (uploadErr) throw uploadErr;
+        payment_proof_path = path;
+      }
+
+      const { error: insertErr } = await sb.from('requests').insert({
+        user_id: currentUser.id,
+        service_name,
+        has_cipc_account,
+        notes,
+        payment_proof_path
+      });
+      if (insertErr) throw insertErr;
+
+      closeConfidentialityModal();
+      document.getElementById('req-notes').value = '';
+      document.getElementById('req-file').value = '';
+      loadRequests();
+    } catch (err) {
+      showMsg('conf-msg', err.message || 'Something went wrong — please try again.');
+    }
+    btn.disabled = false;
+  }
+
+  // ── LOAD & RENDER REQUESTS ──
+  async function loadRequests() {
+    const list = document.getElementById('requestsList');
+    const { data, error } = await sb
+      .from('requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) { list.innerHTML = `<div class="empty-state">Couldn't load requests: ${error.message}</div>`; return; }
+    if (!data || data.length === 0) { list.innerHTML = `<div class="empty-state">No requests yet — submit one above to get started.</div>`; return; }
+
+    list.innerHTML = data.map(renderRequestCard).join('');
+  }
+
+  function renderRequestCard(req) {
+    const stepIndex = STATUS_STEPS.findIndex(s => s.key === req.status);
+    const dateStr = new Date(req.created_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    const steps = STATUS_STEPS.map((s, i) => {
+      const cls = i < stepIndex ? 'done' : (i === stepIndex ? 'active' : '');
+      const mark = i < stepIndex ? '✓' : (i + 1);
+      return `<div class="step ${cls}"><div class="line"></div><div class="dot">${mark}</div><span class="label">${s.label}</span></div>`;
+    }).join('');
+
+    return `
+      <div class="req-card">
+        <div class="req-top">
+          <h4>${req.service_name}</h4>
+          <span class="req-date">Submitted ${dateStr}</span>
+        </div>
+        <div class="stepper">${steps}</div>
+        ${req.notes ? `<div class="req-notice">📝 ${req.notes}</div>` : ''}
+      </div>`;
+  }
+</script>
+</body>
+</html>
