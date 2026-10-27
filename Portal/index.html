@@ -403,6 +403,21 @@
     document.getElementById('userChip').style.display = 'none';
   }
 
+  // Carries a service picked on the homepage (e.g. Portal/?service=...) through
+  // to whichever screen the visitor lands on — auth or straight to the dashboard.
+  const urlParams = new URLSearchParams(window.location.search);
+  const prefillService = urlParams.get('service');
+
+  function applyServicePrefill() {
+    if (!prefillService) return;
+    const select = document.getElementById('req-service');
+    const match = [...select.options].some(o => o.value === prefillService);
+    if (!match) return;
+    select.value = prefillService;
+    select.dispatchEvent(new Event('change'));
+    document.querySelectorAll('.panel')[0]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function onLoggedIn(user) {
     currentUser = user;
     document.getElementById('authView').classList.add('hidden');
@@ -412,14 +427,14 @@
     chip.textContent = user.user_metadata?.full_name || user.email;
     chip.style.display = 'inline';
     loadRequests();
+    applyServicePrefill();
   }
 
   // Restore session on page load
   (async () => {
     const { data: { session } } = await sb.auth.getSession();
     if (session) { onLoggedIn(session.user); return; }
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('tab') === 'signup') switchTab('signup');
+    if (urlParams.get('tab') === 'signup') switchTab('signup');
   })();
 
   // ── CONFIDENTIALITY MODAL ──
