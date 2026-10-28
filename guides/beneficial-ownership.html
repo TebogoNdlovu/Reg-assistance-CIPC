@@ -293,7 +293,8 @@
   .band h2, .band h3{ color:#fff; margin:0 0 6px; font-size:23px; }
   .band p{ color:#C9D0DB; margin:0; max-width:46ch; font-size:16px; }
   .band .acts{ display:flex; flex-direction:column; gap:10px; align-items:flex-start; }
-  .band .acts a.link{ color:#C9D0DB; font-size:14px; }
+  .band .acts a.link{ color:#fff; font-size:15px; font-weight:600; border:1.5px solid #fff; padding:11px 20px; border-radius:6px; text-decoration:none; display:inline-block; }
+  .band .acts a.link:hover{ background:#fff; color:var(--ink); }
   .block .band h2{ margin:0 0 6px; }
 
   details{ border-bottom:1px solid var(--line); padding:15px 0; }
@@ -329,6 +330,7 @@
     .cta-row .btn{ width:100%; }
     .band{ padding:24px 20px; }
     .band .acts, .band .acts .btn{ width:100%; }
+    .band .acts a.link{ width:100%; text-align:center; }
     .mbar{
       display:flex; position:fixed; left:0; right:0; bottom:0; z-index:20; gap:10px; align-items:center;
       padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px)); background:var(--ink); box-shadow:0 -2px 12px rgba(0,0,0,.18);
@@ -351,7 +353,7 @@
     </a>
     <div class="top-actions">
       <a class="signin" data-portal data-track="header_site" href="https://regassistance.co.za/">Visit our website</a>
-      <a class="btn btn-primary btn-sm" data-portal data-track="header_signup" href="https://regassistance.co.za/portal/?tab=signup">Create free account</a>
+      <a class="btn btn-primary btn-sm" data-portal data-track="header_signup" href="https://regassistance.co.za/Portal/?tab=signup">Create free account</a>
     </div>
   </div>
 </header>
@@ -364,7 +366,7 @@
         <h1>CIPC beneficial ownership filing, prepared for you</h1>
         <p class="sub">Every company in South Africa has to declare the people who ultimately own or control it. Since 1 July 2024, an outstanding declaration also blocks your annual return. Create a free account and we'll prepare the filing.</p>
         <div class="cta-row">
-          <a class="btn btn-primary" data-portal data-track="hero_signup" href="https://regassistance.co.za/portal/?tab=signup">Create free account to see your price</a>
+          <a class="btn btn-primary" data-portal data-track="hero_signup" href="https://regassistance.co.za/Portal/?tab=signup">Create free account to see your price</a>
           <a class="btn btn-ghost" data-portal data-track="hero_site" href="https://regassistance.co.za/">Visit our website</a>
         </div>
         <p class="micro">Takes under a minute. Fixed fee. No subscription.</p>
@@ -563,7 +565,7 @@
         <ul>
           <li><a href="https://regassistance.co.za/">Main website</a></li>
           <li><a href="https://regassistance.co.za/#services">All CIPC services</a></li>
-          <li><a data-portal href="https://regassistance.co.za/portal/?tab=signup">Create free account</a></li>
+          <li><a data-portal href="https://regassistance.co.za/Portal/?tab=signup">Create free account</a></li>
         </ul>
       </div>
     </div>
@@ -572,7 +574,7 @@
 </footer>
 
 <div class="mbar">
-  <a class="btn btn-light" data-portal data-track="mobilebar_signup" href="https://regassistance.co.za/portal/?tab=signup">Create free account</a>
+  <a class="btn btn-light" data-portal data-track="mobilebar_signup" href="https://regassistance.co.za/Portal/?tab=signup">Create free account</a>
   <a class="btn btn-ghost" data-portal data-track="mobilebar_site" href="https://regassistance.co.za/">Visit our website</a>
 </div>
 
@@ -600,7 +602,7 @@
     return x;
   }
   var out = document.getElementById('calcOut');
-  var signupHref = 'https://regassistance.co.za/portal/?tab=signup' + (qs ? '&' + qs.replace(/^\?/, '') : '');
+  var signupHref = 'https://regassistance.co.za/Portal/?tab=signup' + (qs ? '&' + qs.replace(/^\?/, '') : '');
 
   document.getElementById('calcBtn').addEventListener('click', function(){
     var holder = document.getElementById('holder').value;

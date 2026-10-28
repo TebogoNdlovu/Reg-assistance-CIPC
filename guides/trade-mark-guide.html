@@ -91,6 +91,11 @@
     background:var(--ink); padding:9px 16px; border-radius:5px; white-space:nowrap;
   }
   .topbar-cta:hover{ background:var(--ink-soft); }
+  .topbar-actions{ display:flex; align-items:center; gap:10px; }
+  .topbar-ghost{ font-size:14px; font-weight:500; text-decoration:none; color:var(--ink); border:1.5px solid var(--ink); padding:8px 14px; border-radius:5px; white-space:nowrap; }
+  .topbar-ghost:hover{ background:var(--ink); color:#fff; }
+  .cta-btn-ghost{ color:#fff; border:1.5px solid #fff; text-decoration:none; font-weight:600; font-size:15px; padding:11px 20px; border-radius:5px; white-space:nowrap; display:inline-block; }
+  .cta-btn-ghost:hover{ background:#fff; color:var(--ink); }
 
   main{ max-width:var(--maxw); margin:0 auto; padding:0 24px; }
 
@@ -168,7 +173,9 @@
 
   @media (max-width:520px){
     .topbar{ padding:16px; }
-    .topbar-cta{ padding:8px 12px; font-size:13px; }
+    .topbar{ flex-wrap:wrap; gap:10px; }
+    .topbar-actions{ width:100%; }
+    .topbar-actions a{ flex:1; text-align:center; padding:9px 8px; font-size:13.5px; }
     body{ font-size:16px; }
     .cta-banner{ flex-direction:column; align-items:flex-start; }
   }
@@ -180,9 +187,9 @@
   <a class="wordmark" href="https://regassistance.co.za">
     <span class="mark">RA</span> Reg Assistance
   </a>
-  <div style="display:flex;align-items:center;gap:16px;">
-    <a href="https://regassistance.co.za/" style="font-size:14px;color:var(--ink-soft);text-decoration:none;">Visit our website</a>
-    <a class="topbar-cta" href="https://regassistance.co.za/portal/?tab=signup">Create free account</a>
+  <div class="topbar-actions">
+    <a class="topbar-ghost" href="https://regassistance.co.za/">Visit our website</a>
+    <a class="topbar-cta" href="https://regassistance.co.za/Portal/?tab=signup">Create free account</a>
   </div>
 </div>
 
@@ -318,8 +325,8 @@
         <p>Tell us your brand name and what you sell, and we'll confirm the right class and handle the full IP Online filing.</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start;">
-        <a class="cta-btn" href="https://regassistance.co.za/portal/?tab=signup">Create free account</a>
-        <a href="https://regassistance.co.za/" style="color:#C9D0DB;font-size:13.5px;">Or visit our website</a>
+        <a class="cta-btn" href="https://regassistance.co.za/Portal/?tab=signup">Create free account</a>
+        <a class="cta-btn-ghost" href="https://regassistance.co.za/">Visit our website</a>
       </div>
     </div>
 
