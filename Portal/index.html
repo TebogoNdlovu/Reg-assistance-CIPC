@@ -158,6 +158,20 @@
   .modal-box .lock-row p { font-size: 0.83rem; color: var(--text-mid); line-height: 1.55; margin: 0; }
   .modal-box .btn-row { display: flex; gap: 10px; margin-top: 8px; }
 
+  /* Price summary + payment banner */
+  .price-box {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    background: var(--gold-pale); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .price-label { font-size: 0.85rem; color: var(--text-mid); font-weight: 600; }
+  .price-amount { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; color: var(--navy); }
+  .price-note { font-size: 0.78rem; color: var(--text-mid); line-height: 1.5; margin: -6px 0 14px; }
+  .fine-print { font-size: 0.72rem; color: var(--text-muted); text-align: center; margin-top: 12px; line-height: 1.5; }
+  .fine-print a { color: var(--gold); font-weight: 600; }
+  .pay-banner { border-radius: 12px; padding: 14px 18px; font-size: 0.88rem; line-height: 1.5; margin-bottom: 24px; }
+  .pay-banner.ok { background: #e6f3ec; color: #1f5c3a; }
+  .pay-banner.info { background: var(--gold-pale); color: var(--navy); }
+
   @media (max-width: 640px) {
     .wrap { padding: 32px 6% 80px; }
     .auth-card { padding: 32px 24px; }
@@ -229,6 +243,8 @@
       <p>Submit a new request or check the status of an existing one.</p>
     </div>
 
+    <div id="payBanner" class="pay-banner hidden"></div>
+
     <!-- New request panel -->
     <div class="panel">
       <h3>Submit a New Request</h3>
@@ -267,10 +283,21 @@
         </optgroup>
       </select>
 
+      <div id="option-wrap" class="hidden">
+        <label for="req-option">Company turnover (this sets your fee)</label>
+        <select id="req-option"></select>
+      </div>
+
       <label id="addon-label" class="hidden" style="margin-top:4px">
         <input type="checkbox" id="req-addon-wp" style="width:auto;display:inline-block;margin-right:8px;vertical-align:middle">
         <span style="font-weight:400;color:var(--text-dark)">💻 Add a basic WordPress website — +R1,200</span>
       </label>
+
+      <div class="price-box">
+        <span class="price-label" id="priceLabel">Loading price…</span>
+        <span class="price-amount" id="priceAmount"></span>
+      </div>
+      <p class="price-note hidden" id="priceNote"></p>
 
       <label>Do you already have a CIPC account for this company?</label>
       <div class="cipc-toggle">
@@ -281,19 +308,12 @@
       <label style="margin-top:10px">Anything else we should know? (optional)</label>
       <textarea id="req-notes" rows="3" placeholder="e.g. preferred company name, urgency, etc."></textarea>
 
-      <label>Proof of Payment (optional — only if you've already paid)</label>
-      <input type="file" id="req-file" accept="image/*,.pdf">
-
       <p class="field-msg error" id="req-msg"></p>
-      <button class="btn btn-primary" onclick="openConfidentialityModal()" id="req-btn">Continue →</button>
-
-      <script>
-        document.getElementById('req-service').addEventListener('change', (e) => {
-          document.getElementById('addon-label').classList.toggle(
-            'hidden', e.target.value !== 'Private Company Registration (Pty Ltd)'
-          );
-        });
-      </script>
+      <button class="btn btn-primary" onclick="openConfidentialityModal()" id="req-btn">Continue to payment →</button>
+      <p class="fine-print">
+        You'll pay securely on PayFast. By paying you accept our
+        <a href="../terms.html">Terms &amp; Conditions and Refund Policy</a>.
+      </p>
     </div>
 
     <!-- Existing requests -->
@@ -313,14 +333,14 @@
       <span class="ic">📧</span>
       <p id="confText">
         For anything sensitive — like an existing CIPC account login — we never ask for it here or store it
-        in your portal account. Once you submit, we'll email a secure, fillable form to your account email
+        in your portal account. Once your payment goes through, we'll email a secure, fillable form to your account email
         for you to complete and return. WhatsApp is available as a backup if email doesn't work for you.
       </p>
     </div>
     <p class="field-msg error" id="conf-msg"></p>
     <div class="btn-row">
       <button class="btn btn-outline" onclick="closeConfidentialityModal()">Back</button>
-      <button class="btn btn-primary" onclick="submitRequest()" id="conf-submit-btn">Confirm &amp; Submit</button>
+      <button class="btn btn-primary" onclick="startCheckout()" id="conf-submit-btn">Confirm &amp; Pay</button>
     </div>
   </div>
 </div>
@@ -427,7 +447,11 @@
     chip.textContent = user.user_metadata?.full_name || user.email;
     chip.style.display = 'inline';
     loadRequests();
-    applyServicePrefill();
+    loadCatalog().finally(() => {
+      applyServicePrefill();
+      updatePriceUI();
+      handlePaymentReturn();
+    });
   }
 
   // Restore session on page load
@@ -437,15 +461,146 @@
     if (urlParams.get('tab') === 'signup') switchTab('signup');
   })();
 
+  // ── PRICING (read from Supabase; the server re-checks every price at checkout) ──
+  const SERVICE_SLUGS = {
+    'Private Company Registration (Pty Ltd)': 'company-registration',
+    'Non-Profit Company (NPC) Registration': 'npc-registration',
+    'Company Name Reservation': 'company-name-reservation',
+    'External Company Registration': 'external-company-registration',
+    'CC to Company Conversion': 'cc-to-company-conversion',
+    'Co-operative Registration': 'co-operative-registration',
+    'Director Changes': 'director-changes',
+    'Annual Returns Filing': 'annual-returns',
+    'Company Name Change': 'company-name-change',
+    'Registered Address Change': 'registered-address-change',
+    'Financial Year-End Change': 'financial-year-end-change',
+    'Company Re-instatement': 'company-reinstatement',
+    'MOI Amendment': 'moi-amendment',
+    'B-BBEE Certificate (CIPC)': 'bbbee-certificate',
+    'Disclosure Certificate': 'disclosure-certificate',
+    'Beneficial Ownership Declaration': 'beneficial-ownership',
+    'Company Deregistration': 'company-deregistration',
+    'Trade Mark Registration': 'trade-mark',
+    'Trade Mark Renewal': 'trade-mark-renewal',
+    'Design Registration': 'design-registration',
+    'Copyright in Film Registration': 'copyright-film-registration'
+  };
+  const FROM_PRICED = ['trade-mark-renewal', 'design-registration', 'copyright-film-registration'];
+  const catalog = { loaded: false, services: {}, prices: [] };
+
+  const fmt = (cents) => 'R' + (cents % 100 === 0
+    ? (cents / 100).toLocaleString('en-US')
+    : (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+  async function loadCatalog() {
+    try {
+      const [s, p] = await Promise.all([
+        sb.from('services').select('slug,name,quote_only'),
+        sb.from('service_prices').select('service_slug,kind,option_key,label,amount_cents')
+      ]);
+      if (s.error) throw s.error;
+      if (p.error) throw p.error;
+      catalog.services = Object.fromEntries(s.data.map(x => [x.slug, x]));
+      catalog.prices = p.data;
+      catalog.loaded = true;
+    } catch (err) {
+      console.error('Could not load prices', err);
+    }
+  }
+
+  function currentSelection() {
+    const name = document.getElementById('req-service').value;
+    const slug = SERVICE_SLUGS[name];
+    const service = catalog.services[slug];
+    const bases = catalog.prices.filter(p => p.service_slug === slug && p.kind === 'base');
+    const websiteAddon = catalog.prices.find(
+      p => p.service_slug === slug && p.kind === 'addon' && p.option_key === 'website'
+    );
+    let base = null;
+    if (bases.length === 1) {
+      base = bases[0];
+    } else if (bases.length > 1) {
+      const chosen = document.getElementById('req-option').value;
+      base = bases.find(b => b.option_key === chosen) || null;
+    }
+    const addons = (websiteAddon && document.getElementById('req-addon-wp').checked) ? ['website'] : [];
+    const total = base ? base.amount_cents + (addons.length ? websiteAddon.amount_cents : 0) : 0;
+    return { name, slug, service, bases, websiteAddon, base, addons, total };
+  }
+
+  function updatePriceUI() {
+    const optWrap = document.getElementById('option-wrap');
+    const optSel = document.getElementById('req-option');
+    const addonLabel = document.getElementById('addon-label');
+    const addonBox = document.getElementById('req-addon-wp');
+    const label = document.getElementById('priceLabel');
+    const amount = document.getElementById('priceAmount');
+    const note = document.getElementById('priceNote');
+    const btn = document.getElementById('req-btn');
+
+    let sel = currentSelection();
+
+    // Turnover dropdown: only for services with more than one price option
+    const needsOption = sel.bases.length > 1;
+    optWrap.classList.toggle('hidden', !needsOption);
+    if (needsOption && optSel.dataset.slug !== sel.slug) {
+      optSel.innerHTML = '<option value="">Select your turnover…</option>' +
+        sel.bases.map(b => `<option value="${b.option_key}">${b.label} — ${fmt(b.amount_cents)}</option>`).join('');
+      optSel.dataset.slug = sel.slug;
+    }
+
+    // Website add-on: only offered where the database has one (Pty Ltd registration)
+    const showAddon = !!sel.websiteAddon;
+    addonLabel.classList.toggle('hidden', !showAddon);
+    if (!showAddon) addonBox.checked = false;
+
+    sel = currentSelection();
+    btn.disabled = false;
+    note.classList.add('hidden');
+
+    if (!catalog.loaded || !sel.service) {
+      label.textContent = catalog.loaded ? 'Price unavailable for this service' : 'Loading price…';
+      amount.textContent = '';
+      btn.disabled = true;
+      return;
+    }
+    if (sel.service.quote_only) {
+      label.textContent = 'This service is by quote';
+      amount.textContent = '';
+      note.textContent = 'Message us on WhatsApp and we will send you a quote.';
+      note.classList.remove('hidden');
+      btn.disabled = true;
+      return;
+    }
+    if (!sel.base) {
+      label.textContent = 'Choose your turnover to see your fee';
+      amount.textContent = '';
+      return;
+    }
+    label.textContent = 'Total to pay now';
+    amount.textContent = fmt(sel.total);
+    if (FROM_PRICED.includes(sel.slug)) {
+      note.textContent = "This is our starting fee. If your case needs more (for example CIPC or registry fees), we'll send a separate payment request.";
+      note.classList.remove('hidden');
+    }
+  }
+
+  document.getElementById('req-service').addEventListener('change', updatePriceUI);
+  document.getElementById('req-option').addEventListener('change', updatePriceUI);
+  document.getElementById('req-addon-wp').addEventListener('change', updatePriceUI);
+
   // ── CONFIDENTIALITY MODAL ──
   function openConfidentialityModal() {
     const service = document.getElementById('req-service').value;
     showMsg('req-msg', '');
+    const sel = currentSelection();
+    if (!sel.service || sel.service.quote_only) return;
+    if (!sel.base) { showMsg('req-msg', 'Please select your company turnover so we can work out your fee.'); return; }
     const confText = document.getElementById('confText');
     if (service === 'Annual Returns Filing') {
-      confText.textContent = "For your annual return we'll need financial info (and an existing CIPC login, if you have one) — but we never collect that here. Once you submit, we'll email a secure, fillable form to your account email to complete and return with any documents attached. WhatsApp is available as a backup if email doesn't work for you.";
+      confText.textContent = "For your annual return we'll need financial info (and an existing CIPC login, if you have one) — but we never collect that here. Once your payment goes through, we'll email a secure, fillable form to your account email to complete and return with any documents attached. WhatsApp is available as a backup if email doesn't work for you.";
     } else {
-      confText.textContent = "For anything sensitive — like an existing CIPC account login — we never ask for it here or store it in your portal account. Once you submit, we'll email a secure, fillable form to your account email for you to complete and return. WhatsApp is available as a backup if email doesn't work for you.";
+      confText.textContent = "For anything sensitive — like an existing CIPC account login — we never ask for it here or store it in your portal account. Once your payment goes through, we'll email a secure, fillable form to your account email for you to complete and return. WhatsApp is available as a backup if email doesn't work for you.";
     }
     document.getElementById('confModal').classList.add('open');
   }
@@ -453,48 +608,79 @@
     document.getElementById('confModal').classList.remove('open');
   }
 
-  // ── SUBMIT REQUEST ──
-  async function submitRequest() {
-    const service_name = document.getElementById('req-service').value;
-    const has_cipc_account = document.querySelector('input[name="cipc"]:checked').value === 'yes';
-    const wantsWpAddon = document.getElementById('req-addon-wp').checked;
-    let notes = document.getElementById('req-notes').value.trim();
-    if (wantsWpAddon) notes = `[+ Add-on: Basic WordPress website, +R1,200] ${notes}`.trim();
-    const fileInput = document.getElementById('req-file');
+  // ── PAY WITH PAYFAST ──
+  function resetPayButton() {
     const btn = document.getElementById('conf-submit-btn');
+    btn.disabled = false;
+    btn.innerHTML = 'Confirm &amp; Pay';
+  }
+  // If someone taps Back from PayFast, the page can be restored with the button still locked
+  window.addEventListener('pageshow', (e) => { if (e.persisted) resetPayButton(); });
+
+  async function startCheckout() {
+    const sel = currentSelection();
+    const btn = document.getElementById('conf-submit-btn');
+    const has_cipc_account = document.querySelector('input[name="cipc"]:checked').value === 'yes';
+    const notes = document.getElementById('req-notes').value.trim();
+
+    if (!sel.service || !sel.base) { closeConfidentialityModal(); return; }
 
     btn.disabled = true;
+    btn.textContent = 'Taking you to PayFast…';
     showMsg('conf-msg', '');
 
-    let payment_proof_path = null;
     try {
-      if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        const path = `${currentUser.id}/${Date.now()}_${file.name}`;
-        const { error: uploadErr } = await sb.storage.from('proof-of-payments').upload(path, file);
-        if (uploadErr) throw uploadErr;
-        payment_proof_path = path;
+      const { data, error } = await sb.functions.invoke('create-checkout', {
+        body: {
+          service_slug: sel.slug,
+          option_key: sel.base.option_key,
+          addons: sel.addons,
+          has_cipc_account,
+          notes
+        }
+      });
+      if (error) {
+        let msg = 'Could not start checkout. Please try again.';
+        try { const body = await error.context.json(); if (body && body.error) msg = body.error; } catch (_) {}
+        throw new Error(msg);
       }
 
-      const { error: insertErr } = await sb.from('requests').insert({
-        user_id: currentUser.id,
-        service_name,
-        has_cipc_account,
-        notes,
-        payment_proof_path
+      // Hand the signed details to PayFast
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = data.url;
+      Object.entries(data.fields).forEach(([name, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
       });
-      if (insertErr) throw insertErr;
-
-      closeConfidentialityModal();
-      document.getElementById('req-notes').value = '';
-      document.getElementById('req-file').value = '';
-      document.getElementById('req-addon-wp').checked = false;
-      document.getElementById('addon-label').classList.add('hidden');
-      loadRequests();
+      document.body.appendChild(form);
+      form.submit();
     } catch (err) {
-      showMsg('conf-msg', err.message || 'Something went wrong — please try again.');
+      showMsg('conf-msg', err.message || 'Something went wrong. Please try again.');
+      resetPayButton();
     }
-    btn.disabled = false;
+  }
+
+  // ── COMING BACK FROM PAYFAST ──
+  function handlePaymentReturn() {
+    const status = urlParams.get('payment');
+    const banner = document.getElementById('payBanner');
+    if (status === 'success') {
+      banner.className = 'pay-banner ok';
+      banner.textContent = `Payment received. We're emailing your next steps to ${currentUser.email}. If it hasn't arrived in a few minutes, check your spam folder or message us on WhatsApp.`;
+      // The request appears once PayFast confirms the payment, so refresh the list a few times
+      let tries = 0;
+      const timer = setInterval(() => { loadRequests(); if (++tries >= 8) clearInterval(timer); }, 4000);
+    } else if (status === 'cancelled') {
+      banner.className = 'pay-banner info';
+      banner.textContent = "Payment cancelled. You haven't been charged and no request was submitted.";
+    } else {
+      return;
+    }
+    history.replaceState(null, '', window.location.pathname);
   }
 
   // ── LOAD & RENDER REQUESTS ──
